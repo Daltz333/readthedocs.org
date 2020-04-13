@@ -8,6 +8,7 @@ from shutil import rmtree
 
 import regex
 from django.conf import settings
+from django.core.files.storage import get_storage_class
 from django.db import models
 from django.db.models import F
 from django.urls import reverse
@@ -63,6 +64,7 @@ from readthedocs.core.utils import broadcast
 from readthedocs.projects.constants import (
     BITBUCKET_COMMIT_URL,
     BITBUCKET_URL,
+    DOCTYPE_CHOICES,
     GITHUB_BRAND,
     GITHUB_COMMIT_URL,
     GITHUB_PULL_REQUEST_COMMIT_URL,
@@ -70,13 +72,12 @@ from readthedocs.projects.constants import (
     GITHUB_URL,
     GITLAB_BRAND,
     GITLAB_COMMIT_URL,
-    DOCUMENTATION_CHOICES,
     GITLAB_MERGE_REQUEST_COMMIT_URL,
     GITLAB_MERGE_REQUEST_URL,
     GITLAB_URL,
     MEDIA_TYPES,
     PRIVACY_CHOICES,
-    PRIVATE,
+    SPHINX,
 )
 from readthedocs.projects.models import APIProject, Project
 from readthedocs.projects.version_handling import determine_stable_version
@@ -145,8 +146,8 @@ class Version(models.Model):
     documentation_type = models.CharField(
         _('Documentation type'),
         max_length=20,
-        choices=DOCUMENTATION_CHOICES,
-        default='sphinx',
+        choices=DOCTYPE_CHOICES,
+        default=SPHINX,
         help_text=_(
             'Type of documentation the version was built with.'
         ),
@@ -306,11 +307,9 @@ class Version(models.Model):
                     'version_slug': self.slug,
                 },
             )
-        private = self.privacy_level == PRIVATE
         external = self.type == EXTERNAL
         return self.project.get_docs_url(
             version_slug=self.slug,
-            private=private,
             external=external,
         )
 
@@ -318,24 +317,21 @@ class Version(models.Model):
         """Add permissions to the Version for all owners on save."""
         from readthedocs.projects import tasks
         obj = super().save(*args, **kwargs)
-        if not self.project.has_feature(feature_id='skip_sync'):
-            broadcast(
-                type='app',
-                task=tasks.symlink_project,
-                args=[self.project.pk],
-            )
+        broadcast(
+            type='app',
+            task=tasks.symlink_project,
+            args=[self.project.pk],
+        )
         return obj
 
     def delete(self, *args, **kwargs):  # pylint: disable=arguments-differ
         from readthedocs.projects import tasks
         log.info('Removing files for version %s', self.slug)
-        has_skip_sync = self.project.has_feature(feature_id='skip_sync')
-        if not has_skip_sync:
-            broadcast(
-                type='app',
-                task=tasks.remove_dirs,
-                args=[self.get_artifact_paths()],
-            )
+        broadcast(
+            type='app',
+            task=tasks.remove_dirs,
+            args=[self.get_artifact_paths()],
+        )
 
         # Remove resources if the version is not external
         if self.type != EXTERNAL:
@@ -343,12 +339,11 @@ class Version(models.Model):
 
         project_pk = self.project.pk
         super().delete(*args, **kwargs)
-        if not has_skip_sync:
-            broadcast(
-                type='app',
-                task=tasks.symlink_project,
-                args=[project_pk],
-            )
+        broadcast(
+            type='app',
+            task=tasks.symlink_project,
+            args=[project_pk],
+        )
 
     @property
     def identifier_friendly(self):
@@ -367,12 +362,10 @@ class Version(models.Model):
         return not self.type == EXTERNAL
 
     def get_subdomain_url(self):
-        private = self.privacy_level == PRIVATE
         external = self.type == EXTERNAL
         return self.project.get_docs_url(
             version_slug=self.slug,
             lang_slug=self.project.language,
-            private=private,
             external=external,
         )
 
@@ -450,6 +443,11 @@ class Version(models.Model):
             )
 
         return paths
+
+    def get_storage_environment_cache_path(self):
+        """Return the path of the cached environment tar file."""
+        storage = get_storage_class(settings.RTD_BUILD_ENVIRONMENT_STORAGE)()
+        return storage.join(self.project.slug, f'{self.slug}.tar')
 
     def clean_build_path(self):
         """

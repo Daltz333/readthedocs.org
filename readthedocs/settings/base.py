@@ -98,6 +98,8 @@ class CommunityBaseSettings(Settings):
     RTD_STABLE = 'stable'
     RTD_STABLE_VERBOSE_NAME = 'stable'
     RTD_CLEAN_AFTER_BUILD = False
+    RTD_MAX_CONCURRENT_BUILDS = 4
+    RTD_BUILD_STATUS_API_NAME = 'docs/readthedocs'
 
     # Database and API hitting settings
     DONT_HIT_API = False
@@ -259,6 +261,7 @@ class CommunityBaseSettings(Settings):
     # Django Storage subclass used to write build artifacts to cloud or local storage
     # https://docs.readthedocs.io/page/development/settings.html#rtd-build-media-storage
     RTD_BUILD_MEDIA_STORAGE = 'readthedocs.builds.storage.BuildMediaFileSystemStorage'
+    RTD_BUILD_ENVIRONMENT_STORAGE = 'readthedocs.builds.storage.BuildMediaFileSystemStorage'
 
     TEMPLATES = [
         {
@@ -463,6 +466,7 @@ class CommunityBaseSettings(Settings):
                 'read_user',
             ],
         },
+        # Bitbucket scope/permissions are determined by the Oauth consumer setup on bitbucket.org
     }
 
     # CORS
@@ -558,6 +562,11 @@ class CommunityBaseSettings(Settings):
 
     # Do Not Track support
     DO_NOT_TRACK_ENABLED = False
+
+    # Advertising configuration defaults
+    ADSERVER_API_BASE = None
+    ADSERVER_API_KEY = None
+    ADSERVER_API_TIMEOUT = 0.35  # seconds
 
     # Misc application settings
     GLOBAL_ANALYTICS_CODE = None

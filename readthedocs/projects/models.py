@@ -486,7 +486,7 @@ class Project(models.Model):
     def get_absolute_url(self):
         return reverse('projects_detail', args=[self.slug])
 
-    def get_docs_url(self, version_slug=None, lang_slug=None, private=None, external=False):
+    def get_docs_url(self, version_slug=None, lang_slug=None, external=False):
         """
         Return a URL for the docs.
 
@@ -496,7 +496,6 @@ class Project(models.Model):
             project=self,
             version_slug=version_slug,
             language=lang_slug,
-            private=private,
             external=external,
         )
 
@@ -1514,7 +1513,8 @@ class Feature(models.Model):
     ALL_VERSIONS_IN_HTML_CONTEXT = 'all_versions_in_html_context'
     SKIP_SYNC_TAGS = 'skip_sync_tags'
     SKIP_SYNC_BRANCHES = 'skip_sync_branches'
-    SKIP_SYNC = 'skip_sync'
+    CACHED_ENVIRONMENT = 'cached_environment'
+    LIMIT_CONCURRENT_BUILDS = 'limit_concurrent_builds'
 
     FEATURES = (
         (USE_SPHINX_LATEST, _('Use latest version of Sphinx')),
@@ -1574,16 +1574,20 @@ class Feature(models.Model):
             ),
         ),
         (
-            SKIP_SYNC_TAGS,
-            _('Skip syncing tags'),
-        ),
-        (
             SKIP_SYNC_BRANCHES,
             _('Skip syncing branches'),
         ),
         (
-            SKIP_SYNC,
-            _('Skip symlinking and file syncing to webs'),
+            SKIP_SYNC_TAGS,
+            _('Skip syncing tags'),
+        ),
+        (
+            CACHED_ENVIRONMENT,
+            _('Cache the environment (virtualenv, conda, pip cache, repository) in storage'),
+        ),
+        (
+            LIMIT_CONCURRENT_BUILDS,
+            _('Limit the amount of concurrent builds'),
         ),
     )
 

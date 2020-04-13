@@ -17,7 +17,7 @@ from readthedocs.projects.constants import PUBLIC
 from readthedocs.projects.models import Project
 
 
-class TestFooterHTML(TestCase):
+class BaseTestFooterHTML:
 
     def setUp(self):
         self.pip = get(
@@ -27,6 +27,8 @@ class TestFooterHTML(TestCase):
             privacy_level=PUBLIC,
             main_language_project=None,
         )
+        self.pip.versions.update(privacy_level=PUBLIC)
+
         self.latest = self.pip.versions.get(slug=LATEST)
         self.url = (
             reverse('footer_html') +
@@ -140,6 +142,65 @@ class TestFooterHTML(TestCase):
         self.assertIn('On GitHub', response.data['html'])
         self.assertIn('View', response.data['html'])
         self.assertNotIn('Edit', response.data['html'])
+
+    def test_index_pages_sphinx_htmldir(self):
+        version = self.pip.versions.get(slug=LATEST)
+        version.documentation_type = 'sphinx_htmldir'
+        version.save()
+
+        # A page with slug 'index' should render like /en/latest/
+        self.url = (
+            reverse('footer_html') +
+            f'?project={self.pip.slug}&version={self.latest.slug}&page=index&docroot=/'
+        )
+        response = self.render()
+        self.assertIn('/en/latest/', response.data['html'])
+        self.assertNotIn('/en/latest/index.html', response.data['html'])
+
+        # A page with slug 'foo/index' should render like /en/latest/foo/
+        self.url = (
+            reverse('footer_html') +
+            f'?project={self.pip.slug}&version={self.latest.slug}&page=foo/index&docroot=/'
+        )
+        response = self.render()
+        self.assertIn('/en/latest/foo/', response.data['html'])
+        self.assertNotIn('/en/latest/foo.html', response.data['html'])
+        self.assertNotIn('/en/latest/foo/index.html', response.data['html'])
+
+        # A page with slug 'foo/bar' should render like /en/latest/foo/bar/
+        self.url = (
+            reverse('footer_html') +
+            f'?project={self.pip.slug}&version={self.latest.slug}&page=foo/bar&docroot=/'
+        )
+        response = self.render()
+        self.assertIn('/en/latest/foo/bar/', response.data['html'])
+        self.assertNotIn('/en/latest/foo/bar.html', response.data['html'])
+        self.assertNotIn('/en/latest/foo/bar/index.html', response.data['html'])
+
+        # A page with slug 'foo/bar/index' should render like /en/latest/foo/bar/
+        self.url = (
+            reverse('footer_html') +
+            f'?project={self.pip.slug}&version={self.latest.slug}&page=foo/bar/index&docroot=/'
+        )
+        response = self.render()
+        self.assertIn('/en/latest/foo/bar/', response.data['html'])
+        self.assertNotIn('/en/latest/foo/bar.html', response.data['html'])
+        self.assertNotIn('/en/latest/foo/bar/index.html', response.data['html'])
+
+        # A page with slug 'foo/index/bar' should render like /en/latest/foo/index/bar/
+        self.url = (
+            reverse('footer_html') +
+            f'?project={self.pip.slug}&version={self.latest.slug}&page=foo/index/bar&docroot=/'
+        )
+        response = self.render()
+        self.assertIn('/en/latest/foo/index/bar/', response.data['html'])
+        self.assertNotIn('/en/latest/foo/index/bar.html', response.data['html'])
+        self.assertNotIn('/en/latest/foo/index/bar/index.html', response.data['html'])
+
+
+class TestFooterHTML(BaseTestFooterHTML, TestCase):
+
+    pass
 
 
 @override_settings(
